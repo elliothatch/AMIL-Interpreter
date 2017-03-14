@@ -12,26 +12,26 @@ namespace AmilTest
         public void TestMethod1()
         {
             Amil.Lexer lexer = Amil.Amil.AmilLexer;
-            IEnumerable<Amil.Token> tokens = lexer.Lex("a = 1;\nif a >= 2 {\nlog hello;\n}");
+            IEnumerable<Amil.Token> tokens = lexer.Lex("a = 1;\nif a >= 2 {\nprint hello;\n}");
             /*foreach (Amil.Token token in tokens) {
                 Debug.WriteLine(token.Type);
                 Debug.WriteLine(token.Value);
             }*/
 
-            List<Tuple<string, string>> expectedTokenVals = new List<Tuple<string, string>>{
-                new Tuple<string, string>("NAME", "a"),
-                new Tuple<string, string>("EQUAL", "="),
-                new Tuple<string, string>("NUMBER", "1"),
-                new Tuple<string, string>("SEMICOLON", ";"),
-                new Tuple<string, string>("IF", "if"),
-                new Tuple<string, string>("NAME", "a"),
-                new Tuple<string, string>( "GREATER_EQUAL", ">="),
-                new Tuple<string, string>("NUMBER", "2"),
-                new Tuple<string, string>("LBRACE", "{"),
-                new Tuple<string, string>("LOG", "log"),
-                new Tuple<string, string>("NAME", "hello"),
-                new Tuple<string, string>("SEMICOLON", ";"),
-                new Tuple<string, string>("RBRACE", "}")
+            List<Tuple<Amil.TokenType, string>> expectedTokenVals = new List<Tuple<Amil.TokenType, string>>{
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.NAME, "a"),
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.EQUAL, "="),
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.INTEGER, "1"),
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.SEMICOLON, ";"),
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.IF, "if"),
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.NAME, "a"),
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.GREATER_EQUAL, ">="),
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.INTEGER, "2"),
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.LBRACE, "{"),
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.PRINT, "print"),
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.NAME, "hello"),
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.SEMICOLON, ";"),
+                new Tuple<Amil.TokenType, string>(Amil.TokenType.RBRACE, "}")
             };
             int index = 0;
             foreach(Amil.Token token in tokens)
@@ -40,10 +40,6 @@ namespace AmilTest
                 {
                     Assert.AreEqual(expectedTokenVals[index].Item1, token.Type);
                     Assert.AreEqual(expectedTokenVals[index].Item2, token.Value);
-                }
-                else if(index == expectedTokenVals.Count)
-                {
-                    Assert.IsNull(token);
                 }
                 else
                 {
