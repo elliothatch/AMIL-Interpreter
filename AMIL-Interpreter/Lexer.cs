@@ -39,6 +39,7 @@ namespace Amil
         PLUS,
         MINUS,
         TIMES,
+        DIVIDE,
         EQUAL_TO,
         GREATER_EQUAL,
         SEMICOLON,

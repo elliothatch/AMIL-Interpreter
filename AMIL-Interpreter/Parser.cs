@@ -61,7 +61,7 @@ namespace Amil
         {
             Expression output = null;
             Token token = enumerator.Current;
-            switch(token.Type)
+            switch (token.Type)
             {
                 case TokenType.LPAREN:
                     /*
@@ -93,6 +93,33 @@ namespace Amil
             }
 
             enumerator.MoveNext();
+            //look-ahead to continue parsing if part of a larger expression
+            Expression previousExpr = output;
+            token = enumerator.Current;
+            switch (token.Type)
+            {
+                case TokenType.PLUS:
+                case TokenType.MINUS:
+                case TokenType.TIMES:
+                case TokenType.DIVIDE:
+                    BinaryOp op = BinaryOp.ADD;
+                    switch (token.Type)
+                    {
+                        case TokenType.MINUS:
+                            op = BinaryOp.SUBTRACT;
+                            break;
+                        case TokenType.TIMES:
+                            op = BinaryOp.MULTIPLY;
+                            break;
+                        case TokenType.DIVIDE:
+                            op = BinaryOp.DIVIDE;
+                            break;
+                    }
+                    enumerator.MoveNext();
+                    output = new BinaryOpExpr(previousExpr, parseExpression(enumerator), op);
+                    break;
+            }
+
             return output;
         }
 
@@ -120,6 +147,7 @@ namespace Amil
         {
             this.sType = sType;
         }
+        public abstract List<Instruction> Compile();
     }
     public class BlockStatement : Statement
     {
@@ -130,8 +158,14 @@ namespace Amil
             statements = new List<Statement>();
         }
 
-        public void parse(IEnumerator<Token> enumerator)
+        public override List<Instruction> Compile()
         {
+            List<Instruction> output = new List<Instruction>();
+            foreach(var statement in statements)
+            {
+                output.AddRange(statement.Compile());
+            }
+            return output;
         }
     }
 
@@ -141,11 +175,16 @@ namespace Amil
         public DeclarationStatement(Expression name)
             : base(StatementType.DECLARATION)
         {
-            if(name.eType != ExpressionType.NAME)
+            if (name.eType != ExpressionType.NAME)
             {
                 throw new Exception("Variable declaration must be a name");
             }
             this.name = (NameExpr)name;
+        }
+
+        public override List<Instruction> Compile()
+        {
+            return new List<Instruction> { new DeclarationInstruction(name.name) };
         }
     }
 
@@ -159,6 +198,16 @@ namespace Amil
             this.condition = condition;
             this.body = body;
         }
+
+        public override List<Instruction> Compile()
+        {
+            List<Instruction> instructions = new List<Instruction>();
+            List<Instruction> bodyInstructions = body.Compile();
+            instructions.AddRange(condition.Compile());
+            instructions.Add(new BranchInstruction(bodyInstructions.Count));
+            instructions.AddRange(bodyInstructions);
+            return instructions;
+        }
     }
 
     public class PrintStatement : Statement
@@ -168,6 +217,14 @@ namespace Amil
             : base(StatementType.PRINT)
         {
             this.expr = expr;
+        }
+
+        public override List<Instruction> Compile()
+        {
+            List<Instruction> instructions = new List<Instruction>();
+            instructions.AddRange(expr.Compile());
+            instructions.Add(new PrintInstruction());
+            return instructions;
         }
     }
 
@@ -179,12 +236,18 @@ namespace Amil
         {
             this.expr = expr;
         }
+
+        public override List<Instruction> Compile()
+        {
+            return new List<Instruction> { new PopInstruction() };
+        }
     }
 
     public enum ValueType
     {
         INTEGER,
-        BOOLEAN
+        BOOLEAN,
+        NONE
     }
 
     public abstract class Value
@@ -194,6 +257,8 @@ namespace Amil
         {
             this.vType = vType;
         }
+
+        public abstract string print();
     }
 
     public class IntegerValue : Value
@@ -203,6 +268,11 @@ namespace Amil
             :base(ValueType.INTEGER)
         {
             this.n = n;
+        }
+
+        public override string print()
+        {
+            return n.ToString();
         }
     }
 
@@ -214,6 +284,24 @@ namespace Amil
         {
             this.b = b;
         }
+
+        public override string print()
+        {
+            return b.ToString();
+        }
+    }
+
+    public class NoneValue : Value
+    {
+        public NoneValue()
+            : base(ValueType.NONE)
+        {
+        }
+
+        public override string print()
+        {
+            return "None";
+        }
     }
 
 
@@ -224,6 +312,14 @@ namespace Amil
         BINARY_OP
     }
 
+    public enum BinaryOp
+    {
+        ADD,
+        SUBTRACT,
+        MULTIPLY,
+        DIVIDE
+    }
+
     public abstract class Expression
     {
         public readonly ExpressionType eType;
@@ -231,6 +327,8 @@ namespace Amil
         {
             this.eType = eType;
         }
+
+        public abstract List<Instruction> Compile();
     }
 
     public class ConstantExpr : Expression
@@ -240,6 +338,11 @@ namespace Amil
             :base(ExpressionType.CONSTANT)
         {
             this.value = value;
+        }
+
+        public override List<Instruction> Compile()
+        {
+            return new List<Instruction> { new PushConstInstruction(value) };
         }
     }
 
@@ -251,18 +354,48 @@ namespace Amil
         {
             this.name = name;
         }
+        public override List<Instruction> Compile()
+        {
+            return new List<Instruction> { new LoadInstruction(name) };
+        }
     }
 
     class BinaryOpExpr : Expression
     {
         public Expression lhs;
         public Expression rhs;
-        public BinaryOpExpr()
+        public BinaryOp op;
+        public BinaryOpExpr(Expression lhs, Expression rhs, BinaryOp op)
             :base(ExpressionType.BINARY_OP)
         {
-
+            this.lhs = lhs;
+            this.rhs = rhs;
+            this.op = op;
         }
-    }
+
+        public override List<Instruction> Compile()
+        {
+            List<Instruction> instructions = new List<Instruction>();
+            instructions.AddRange(lhs.Compile());
+            instructions.AddRange(rhs.Compile());
+            switch(op)
+            {
+                case BinaryOp.ADD:
+                    instructions.Add(new AddInstruction());
+                    break;
+                case BinaryOp.SUBTRACT:
+                    instructions.Add(new SubtractInstruction());
+                    break;
+                case BinaryOp.MULTIPLY:
+                    instructions.Add(new MultiplyInstruction());
+                    break;
+                case BinaryOp.DIVIDE:
+                    instructions.Add(new DivideInstruction());
+                    break;
+            }
+            return instructions;
+        }
+    }    
 
     /* is a binary op
     class AssignmentExpr : Expression
